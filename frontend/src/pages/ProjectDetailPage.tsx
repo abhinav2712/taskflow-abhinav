@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { getApiErrorMessage, projectsApi, tasksApi, usersApi } from "api/client";
 import Navbar from "components/Navbar";
@@ -10,6 +10,7 @@ import type { Project, Task, TaskStatus, User } from "types";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const currentUserId = user?.id ?? "";
 
@@ -24,6 +25,7 @@ export default function ProjectDetailPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task }>({ open: false });
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [deletingProject, setDeletingProject] = useState(false);
 
   function matchesActiveFilters(task: Task) {
     const matchesStatus = !statusFilter || task.status === statusFilter;
@@ -222,6 +224,28 @@ export default function ProjectDetailPage() {
     return matchedUser?.name ?? task.assignee_id;
   }
 
+  async function handleDeleteProject() {
+    if (!project) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete "${project.name}"? This will also remove its tasks.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setFeedback(null);
+    setDeletingProject(true);
+
+    try {
+      await projectsApi.delete(project.id);
+      navigate("/projects", { replace: true });
+    } catch (deleteError) {
+      setFeedback(getApiErrorMessage(deleteError).error);
+      setDeletingProject(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="app-layout">
@@ -253,6 +277,8 @@ export default function ProjectDetailPage() {
     );
   }
 
+  const canDeleteProject = project.owner_id === currentUserId;
+
   return (
     <div className="app-layout">
       <Navbar />
@@ -270,9 +296,26 @@ export default function ProjectDetailPage() {
 
           <div className="project-hero__meta">
             <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
-            <button className="button button--primary" onClick={() => setTaskModal({ open: true })} type="button">
-              New task
-            </button>
+            <div className="task-card__buttons">
+              {canDeleteProject ? (
+                <button
+                  className="button button--danger"
+                  disabled={deletingProject}
+                  onClick={handleDeleteProject}
+                  type="button"
+                >
+                  {deletingProject ? "Deleting..." : "Delete project"}
+                </button>
+              ) : null}
+              <button
+                className="button button--primary"
+                disabled={deletingProject}
+                onClick={() => setTaskModal({ open: true })}
+                type="button"
+              >
+                New task
+              </button>
+            </div>
           </div>
         </section>
 

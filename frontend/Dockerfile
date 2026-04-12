@@ -1,19 +1,20 @@
-FROM nginx:alpine
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+ARG VITE_API_URL=http://localhost:8080
+ENV VITE_API_URL=${VITE_API_URL}
+
+RUN npm run build
+
+FROM nginx:1.27-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-RUN printf '%s\n' \
-  '<!doctype html>' \
-  '<html lang="en">' \
-  '  <head>' \
-  '    <meta charset="utf-8" />' \
-  '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />' \
-  '    <title>TaskFlow</title>' \
-  '  </head>' \
-  '  <body>' \
-  '    <main>' \
-  '      <h1>TaskFlow</h1>' \
-  '      <p>Frontend container placeholder for the initial scaffold.</p>' \
-  '    </main>' \
-  '  </body>' \
-  '</html>' \
-  > /usr/share/nginx/html/index.html
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80

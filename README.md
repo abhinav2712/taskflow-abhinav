@@ -1,250 +1,235 @@
 # TaskFlow
 
-Initial monorepo scaffold for the take-home assignment.
+## 1. Overview
 
-This commit only sets up the planned repo structure, placeholder environment and compose files, and minimal backend/frontend bootstrapping. No business logic has been implemented yet.
+TaskFlow is a small full-stack task management app built for the take-home assignment.
 
-Planned stack, per repo decisions:
-- Go + chi backend
+It includes:
+- Go + Chi backend
+- PostgreSQL database
 - React + TypeScript + Vite frontend
-- PostgreSQL
+- JWT-based authentication
+- Projects and tasks CRUD
+- task filtering and optimistic status updates in the UI
 
-Implementation details, migrations, API endpoints, and full local run instructions will be added in later phases.
+The repo is structured as a simple monorepo:
+- `backend/` for the Go API
+- `frontend/` for the React app
 
+## 2. Architecture Decisions
 
+- Backend framework: `chi`
+  - Keeps routing small and explicit without adding a larger framework.
+- Backend structure: `handler -> store`
+  - Handlers own HTTP concerns.
+  - Stores own SQL/database access.
+  - No service layer was added to keep the project aligned with the assignment and easy to review.
+- Database migrations:
+  - SQL migrations live in `backend/db/migrations/`.
+  - They are embedded into the Go binary and executed on backend startup.
+  - Seed data is part of the migration set rather than a separate manual script.
+- Frontend routing:
+  - React Router is used for navigation and protected routes.
+- Frontend state:
+  - Zustand with `persist` is used for auth state so JWT/user data survive refreshes.
+- UI approach:
+  - Custom React components + custom CSS were used.
+  - No external component library was added.
+  - The visual direction is a lightweight Zomato-inspired card UI with responsive layouts.
 
+## 3. Running Locally
 
+### Option A: Docker Compose
 
-Implement Phase 2 only: backend auth foundation.
+1. Create the root env file:
 
-Scope:
+```bash
+cp .env.example .env
+```
 
-model structs needed for auth and shared domain types
-user store functions needed for register/login
-password hashing utilities for register
-JWT generation and validation utilities
-auth handlers for:
-POST /auth/register
-POST /auth/login
-auth middleware for protected routes
-structured JSON error responses for validation and unauthorized cases
+2. Start the full stack:
 
-Requirements:
+```bash
+docker compose up --build
+```
 
-bcrypt cost >= 12
-JWT expiry 24 hours
-JWT claims must include user_id and email
-JSON responses only
-400 validation failed with fields object
-401 for unauthenticated requests
-no project/task handlers yet
-no extra architecture or service layer
-keep code simple and aligned with the plan
+Services:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8080`
+- PostgreSQL: `localhost:5432`
 
-Important:
+Notes:
+- The backend waits for Postgres health before starting.
+- On backend startup, embedded migrations are applied automatically.
+- The seed migration is also applied automatically.
 
-do not require unrelated config at startup before it is actually used
-keep startup wiring minimal and phase-appropriate
-summarize created files, request/response shapes, and manual tests to run next
+### Option B: Run Backend + Frontend Separately
 
+1. Create the root env file:
 
-At the end, summarize:
-- routes added
-- request/response shapes
-- files changed
-- what I should test manually now
+```bash
+cp .env.example .env
+```
 
+2. Start PostgreSQL separately.
 
+3. Run the backend:
 
+```bash
+cd backend
+go run ./cmd/server
+```
 
-Phase 4:
-Implement only the Projects API.
+4. For the Vite frontend, create `frontend/.env` with:
 
-Required endpoints:
-- GET /projects
-- POST /projects
-- GET /projects/:id
-- PATCH /projects/:id
-- DELETE /projects/:id
+```bash
+VITE_API_URL=http://localhost:8080
+```
 
-Rules:
-- owner = current authenticated user on create
-- update/delete owner only
-- GET /projects should list projects the user owns or has tasks in
-- GET /projects/:id should include project details and its tasks
+5. Run the frontend:
 
-Requirements:
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-All routes protected by auth middleware
-Project owner = authenticated user on create
-Only owner can update/delete project
-GET /projects returns projects owned by user
-GET /projects/ returns project details
-include created_at and updated_at
-validation errors return 400 with fields object
-unauthorized access returns 403
-not found returns 404
+Default local URLs:
+- Frontend dev server: `http://localhost:5173`
+- Backend API: `http://localhost:8080`
 
-Keep error handling aligned with the assignment:
-- 401 unauthenticated
-- 403 unauthorized
-- 404 not found
-- 400 validation failed with fields object
+## 4. Running Migrations
 
-Do NOT implement tasks yet.
-Do NOT add service layer.
-Keep handler → store structure.
-Return consistent JSON responses.
+There is no separate custom migration CLI in this project.
 
-Output:
+Migration strategy:
+- SQL files are stored in `backend/db/migrations/`
+- the backend embeds them with `go:embed`
+- the backend runs them on startup using `golang-migrate`
 
-created files
-request/response shapes
-manual tests to run
+Current migration set:
+- `000001_init` - schema
+- `000002_seed` - seed data
+- `000003_project_updated_at` - follow-up schema tweak
 
-Do not over-engineer. This is a take-home assignment optimized for clarity, correctness, reviewability, and completion within 4–5 hours.
+Practical usage:
+- `docker compose up --build` will start Postgres and then the backend, which applies migrations automatically
+- `go run ./cmd/server` also applies migrations automatically when running the backend locally
 
+If you want a clean reseed with Docker:
 
-phase 5:
-Implement only the Tasks API.
+```bash
+docker compose down -v
+docker compose up --build
+```
 
-Required endpoints:
-- GET /projects/:id/tasks
-- POST /projects/:id/tasks
-- PATCH /tasks/:id
-- DELETE /tasks/:id
+That recreates the database volume, reapplies the schema migrations, and reapplies the seed migration.
 
-Requirements:
-- support filters ?status= and ?assignee=
-- PATCH should allow updating title, description, status, priority, assignee, due_date
-- DELETE allowed only for project owner or task creator
-- keep structured JSON errors
-- keep handlers/services/db code simple and readable
+## 5. Test Credentials
 
-Do not change architecture without explicit justification.
-At the end, list the manual API tests I should run.
+Seeded reviewer account:
 
+- Email: `test@example.com`
+- Password: `password123`
 
-phase 6:
+Seeded data also includes:
+- 1 test user
+- 1 demo project
+- 3 demo tasks with different statuses
 
-Read:
+## 6. API Reference
 
-ASSIGNMENT.md
-DECISIONS.md
-ARCHITECTURE.md
-EXECUTION_PLAN.md
-FILE_BLUEPRINT.md
-REQUIREMENT_MAP.md
+All responses are JSON.
 
-Follow them exactly.
+### Auth
 
-Implement frontend Phase 1 only: auth and app shell.
+- `POST /auth/register`
+- `POST /auth/login`
 
-UI theme:
+### Users
 
-Zomato-inspired clean UI
-primary color: #EF4F5F
-white card-based layout
-subtle shadows and rounded corners
-neutral gray backgrounds
-status badges:
-todo: gray
-in_progress: orange
-done: green
+- `GET /users`
+  - Protected
+  - Returns `id`, `name`, and `email` for available users
 
-Typography:
+### Projects
 
-Inter or system-ui
-medium-weight headings
-minimal borders
+- `GET /projects`
+  - Protected
+  - Returns projects visible to the authenticated user
+- `POST /projects`
+  - Protected
+  - Creates a project owned by the authenticated user
+- `GET /projects/:id`
+  - Protected
+  - Returns project details and its tasks
+- `PATCH /projects/:id`
+  - Protected
+  - Owner only
+- `DELETE /projects/:id`
+  - Protected
+  - Owner only
 
-Layout:
+### Tasks
 
-top navbar with app name and logout
-centered auth forms
-responsive mobile-first design
+- `GET /projects/:id/tasks`
+  - Protected
+  - Supports optional filters:
+    - `?status=todo|in_progress|done`
+    - `?assignee=<user-id>`
+- `POST /projects/:id/tasks`
+  - Protected
+  - Creates a task inside the project
+- `PATCH /tasks/:id`
+  - Protected
+  - Supports updating title, description, status, priority, assignee, and due date
+- `DELETE /tasks/:id`
+  - Protected
+  - Allowed for the project owner or the task creator
 
-Scope:
-- React + TypeScript + Vite
-- React Router
-- login page
-- register page
-- auth store with persistence
-- JWT persistence across refresh
-- protected routes redirecting to /login
-- navbar with logged-in user and logout
-- API client wired to existing backend
-- visible loading and error states
+### Common Error Shapes
 
-Requirements:
+- `400`
 
-auth must persist across refresh
-redirect unauthenticated users to /login
-store JWT and user object from backend responses
-keep components simple and aligned with the existing architecture
-do not implement projects/tasks pages yet beyond minimal placeholders
+```json
+{
+  "error": "validation failed",
+  "fields": {
+    "name": "is required"
+  }
+}
+```
 
-Output:
+- `401`
 
-files created/changed
-route structure
-manual UI/API tests to run
+```json
+{
+  "error": "unauthorized"
+}
+```
 
-Do not implement project/task UI yet.
-Do not introduce extra state libraries beyond the planned choice.
-Keep components small and readable.
+- `403`
 
-phase 7:
-Implement only the remaining core frontend views.
+```json
+{
+  "error": "forbidden"
+}
+```
 
-Required:
-- replace /projects placeholder with real list
-- Projects list page
-- create project action
-- fetch GET /projects
-- display project cards
-- create project modal
-- Project detail page
-- tasks displayed in a sensible grouped or listed way
-- filters for status and assignee
-- task create/edit modal or side panel
-- loading, error, and empty states
-- clicking project navigates to /projects/
-- responsive behavior for mobile and desktop
-- no silent failures
+- `404`
 
-UI:
+```json
+{
+  "error": "not found"
+}
+```
 
-- card layout
-- Zomato theme colors
-- hover effects
-- responsive layout
+## 7. What I'd Do With More Time
 
-Also implement optimistic UI for task status changes:
-- update immediately in UI
-- revert on API error
-- show visible feedback on failure
-
-Do not add drag-and-drop unless everything else is already done.
-
-phase 8:
-Implement only infrastructure and documentation polish.
-
-Scope:
-- backend multi-stage Dockerfile
-- frontend Dockerfile
-- docker-compose.yml that starts db, backend, frontend
-- .env.example with all required variables
-- migration execution strategy
-- seed setup integration
-- README with these sections:
-  1. Overview
-  2. Architecture Decisions
-  3. Running Locally
-  4. Running Migrations
-  5. Test Credentials
-  6. API Reference
-  7. What I'd Do With More Time
-
-The result should be reviewer-friendly and aligned with the assignment.
-Do not invent unsupported commands.
+- Add backend tests for handlers and store queries
+- Add frontend integration tests for auth, projects, and task flows
+- Improve assignee filtering to support all users directly from the UI
+- Add pagination and search for larger project/task lists
+- Add retry actions on error states in the frontend
+- Tighten Docker polish further with smaller runtime images and explicit healthchecks for the app containers
+- Add a production-focused deployment note section
