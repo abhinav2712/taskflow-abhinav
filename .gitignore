@@ -26,6 +26,10 @@ go.work.sum
 
 # env file
 .env
+backend/taskflow-api
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
 
 # Editor/IDE
 # .idea/
