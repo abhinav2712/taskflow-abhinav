@@ -42,11 +42,14 @@ func main() {
 	router.Post("/auth/register", handler.Register(pool, cfg.JWTSecret))
 	router.Post("/auth/login", handler.Login(pool, cfg.JWTSecret))
 
-	// Protected routes will be mounted here in Phase 3 & 4
-	// router.Group(func(r chi.Router) {
-	// 	r.Use(middleware.Authenticate(cfg.JWTSecret))
-	// 	// project and task routes
-	// })
+	router.Route("/projects", func(r chi.Router) {
+		r.Use(middleware.Authenticate(cfg.JWTSecret))
+		r.Get("/", handler.ListProjects(pool))
+		r.Post("/", handler.CreateProject(pool))
+		r.Get("/{id}", handler.GetProject(pool))
+		r.Patch("/{id}", handler.UpdateProject(pool))
+		r.Delete("/{id}", handler.DeleteProject(pool))
+	})
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

@@ -20,6 +20,7 @@ type Project struct {
 	Description *string   `json:"description"`
 	OwnerID     uuid.UUID `json:"owner_id"`
 	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 	Tasks       []Task    `json:"tasks,omitempty"`
 }
 

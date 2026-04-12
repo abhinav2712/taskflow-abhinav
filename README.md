@@ -55,144 +55,133 @@ At the end, summarize:
 - what I should test manually now
 
 
+
+
+Phase 4:
+Implement only the Projects API.
+
+Required endpoints:
+- GET /projects
+- POST /projects
+- GET /projects/:id
+- PATCH /projects/:id
+- DELETE /projects/:id
+
+Rules:
+- owner = current authenticated user on create
+- update/delete owner only
+- GET /projects should list projects the user owns or has tasks in
+- GET /projects/:id should include project details and its tasks
+
+Requirements:
+
+All routes protected by auth middleware
+Project owner = authenticated user on create
+Only owner can update/delete project
+GET /projects returns projects owned by user
+GET /projects/ returns project details
+include created_at and updated_at
+validation errors return 400 with fields object
+unauthorized access returns 403
+not found returns 404
+
+Keep error handling aligned with the assignment:
+- 401 unauthenticated
+- 403 unauthorized
+- 404 not found
+- 400 validation failed with fields object
+
+Do NOT implement tasks yet.
+Do NOT add service layer.
+Keep handler → store structure.
+Return consistent JSON responses.
+
+Output:
+
+created files
+request/response shapes
+manual tests to run
+
 Do not over-engineer. This is a take-home assignment optimized for clarity, correctness, reviewability, and completion within 4–5 hours.
 
 
+phase 5:
+Implement only the Tasks API.
+
+Required endpoints:
+- GET /projects/:id/tasks
+- POST /projects/:id/tasks
+- PATCH /tasks/:id
+- DELETE /tasks/:id
+
+Requirements:
+- support filters ?status= and ?assignee=
+- PATCH should allow updating title, description, status, priority, assignee, due_date
+- DELETE allowed only for project owner or task creator
+- keep structured JSON errors
+- keep handlers/services/db code simple and readable
+
+Do not change architecture without explicit justification.
+At the end, list the manual API tests I should run.
 
 
+phase 6:
+Read the planning files and implement only frontend auth and routing.
 
------
+Scope:
+- React + TypeScript + Vite
+- React Router
+- login page
+- register page
+- auth store
+- JWT persistence across refresh
+- protected routes redirecting to /login
+- navbar with logged-in user and logout
+- visible loading and error states
 
-Implemented Phase 2 only: auth models, user store, bcrypt/JWT auth flow, JSON helpers, auth middleware, and minimal router wiring for the two public auth routes.
+Do not implement project/task UI yet.
+Do not introduce extra state libraries beyond the planned choice.
+Keep components small and readable.
 
-Routes Added
+phase 7:
+Implement only the remaining core frontend views.
 
-POST /auth/register
-POST /auth/login
-The auth middleware is implemented in backend/middleware/auth.go, but I did not mount any protected business routes yet since that belongs to later phases.
+Required:
+- Projects list page
+- create project action
+- Project detail page
+- tasks displayed in a sensible grouped or listed way
+- filters for status and assignee
+- task create/edit modal or side panel
+- loading, error, and empty states
+- responsive behavior for mobile and desktop
+- no silent failures
 
-Request / Response Shapes
+Also implement optimistic UI for task status changes:
+- update immediately in UI
+- revert on API error
+- show visible feedback on failure
 
-POST /auth/register
-Request:
-{ "name": "Test User", "email": "test@example.com", "password": "password123" }
+Do not add drag-and-drop unless everything else is already done.
 
+phase 8:
+Implement only infrastructure and documentation polish.
 
-sucess 201:
-{
-  "token": "<jwt>",
-  "user": {
-    "id": "<uuid>",
-    "name": "Test User",
-    "email": "test@example.com",
-    "created_at": "<timestamp>"
-  }
-}
+Scope:
+- backend multi-stage Dockerfile
+- frontend Dockerfile
+- docker-compose.yml that starts db, backend, frontend
+- .env.example with all required variables
+- migration execution strategy
+- seed setup integration
+- README with these sections:
+  1. Overview
+  2. Architecture Decisions
+  3. Running Locally
+  4. Running Migrations
+  5. Test Credentials
+  6. API Reference
+  7. What I'd Do With More Time
 
-POST /auth/login
-
-
-Request:
-{ "email": "test@example.com", "password": "password123" }
-Success 200: same shape as register
-
-Validation error 400
-{ "error": "validation failed", "fields": { "email": "is required" } }
-
-
-Bad JSON body 400:
-{ "error": "invalid request body" }
-
-
-Unauthenticated 401:
-
-{ "error": "unauthorized" }
-
-duplicate email 409:
-
-{ "error": "email already in use" }
-
-Files Changed
-
-Added backend/model/models.go
-Added backend/store/user.go
-Added backend/handler/helpers.go
-Added backend/handler/auth.go
-Added backend/middleware/auth.go
-Added backend/middleware/logger.go
-Updated backend/cmd/server/main.go
-Updated backend/go.mod
-
-What I Actually Added, In Plain English
-
-    models.go: plain Go structs for User, Project, and Task. Think of these as the shared data shapes our backend passes around. Password has json:"-" so it never leaks into API responses.
-
-    store/user.go: the DB-only layer for auth. It knows how to create a user and fetch a user by email, but it knows nothing about HTTP or JWT.
-
-    handler/helpers.go: small shared HTTP helpers so every endpoint returns consistent JSON.
-
-    handler/auth.go: register/login endpoints. This is where request validation, bcrypt hashing, password checking, and JWT creation happen.
-
-    middleware/auth.go: reads Authorization: Bearer ..., validates the token, and stores user_id and email in the request context for later protected routes.
-
-    main.go: now starts an actual HTTP server, mounts the two auth routes, and keeps startup minimal.
-
-Important Auth Decisions Kept Aligned To The Plan
-
-    bcrypt cost is explicitly 12 in backend/handler/auth.go
-
-    JWT expiry is 24 * time.Hour
-
-    JWT claims include user_id and email
-
-    login returns 401 for wrong email or wrong password
-
-    validation failures return 400 with a fields object
-
-    no service layer added
-
-    no project/task handlers added
-
-What You Should Test Manually Now
-1. Register a brand-new user.
-Bash
-
-curl -i -X POST http://localhost:8080/auth/register \
- -H 'Content-Type: application/json' \
- -d '{"name":"Alice","email":"alice@example.com","password":"password123"}'
-
-2. Log in with that user.
-Bash
-
-curl -i -X POST http://localhost:8080/auth/login \
- -H 'Content-Type: application/json' \
- -d '{"email":"alice@example.com","password":"password123"}'
-
-3. Log in with the seeded Phase 1 user.
-Bash
-
-curl -i -X POST http://localhost:8080/auth/login \
- -H 'Content-Type: application/json' \
- -d '{"email":"test@example.com","password":"password123"}'
-
-4. Try missing fields and confirm you get 400 plus fields.
-Bash
-
-curl -i -X POST http://localhost:8080/auth/login \
- -H 'Content-Type: application/json' \
- -d '{"email":""}'
-
-5. Try the wrong password and confirm you get 401.
-Bash
-
-curl -i -X POST http://localhost:8080/auth/login \
- -H 'Content-Type: application/json' \
- -d '{"email":"test@example.com","password":"wrong"}'
-
-6. Try duplicate registration and confirm you get 409.
-7. Try malformed JSON and confirm you get 400 {"error":"invalid request body"}.
-
-    One note: I couldn't run the Go server in this environment because go isn't installed here, so this was implemented and checked by code inspection rather than a live boot.
-
-
-
+The result should be reviewer-friendly and aligned with the assignment.
+Do not invent unsupported commands.
