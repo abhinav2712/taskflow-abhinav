@@ -29,6 +29,7 @@ go.work.sum
 backend/taskflow-api
 frontend/node_modules/
 frontend/dist/
+frontend/tsconfig.tsbuildinfo
 
 # Editor/IDE
 # .idea/

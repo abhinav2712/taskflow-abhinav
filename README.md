@@ -126,18 +126,69 @@ At the end, list the manual API tests I should run.
 
 
 phase 6:
-Read the planning files and implement only frontend auth and routing.
+
+Read:
+
+ASSIGNMENT.md
+DECISIONS.md
+ARCHITECTURE.md
+EXECUTION_PLAN.md
+FILE_BLUEPRINT.md
+REQUIREMENT_MAP.md
+
+Follow them exactly.
+
+Implement frontend Phase 1 only: auth and app shell.
+
+UI theme:
+
+Zomato-inspired clean UI
+primary color: #EF4F5F
+white card-based layout
+subtle shadows and rounded corners
+neutral gray backgrounds
+status badges:
+todo: gray
+in_progress: orange
+done: green
+
+Typography:
+
+Inter or system-ui
+medium-weight headings
+minimal borders
+
+Layout:
+
+top navbar with app name and logout
+centered auth forms
+responsive mobile-first design
 
 Scope:
 - React + TypeScript + Vite
 - React Router
 - login page
 - register page
-- auth store
+- auth store with persistence
 - JWT persistence across refresh
 - protected routes redirecting to /login
 - navbar with logged-in user and logout
+- API client wired to existing backend
 - visible loading and error states
+
+Requirements:
+
+auth must persist across refresh
+redirect unauthenticated users to /login
+store JWT and user object from backend responses
+keep components simple and aligned with the existing architecture
+do not implement projects/tasks pages yet beyond minimal placeholders
+
+Output:
+
+files created/changed
+route structure
+manual UI/API tests to run
 
 Do not implement project/task UI yet.
 Do not introduce extra state libraries beyond the planned choice.
@@ -147,13 +198,18 @@ phase 7:
 Implement only the remaining core frontend views.
 
 Required:
+- replace /projects placeholder with real list
 - Projects list page
 - create project action
+- fetch GET /projects
+- display project cards
+- create project modal
 - Project detail page
 - tasks displayed in a sensible grouped or listed way
 - filters for status and assignee
 - task create/edit modal or side panel
 - loading, error, and empty states
+- clicking project navigates to /projects/
 - responsive behavior for mobile and desktop
 - no silent failures
 
