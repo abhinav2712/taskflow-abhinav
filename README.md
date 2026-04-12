@@ -1,5 +1,7 @@
 # TaskFlow
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c5cb25a1-0def-4c4f-854f-b0029051edf4" />
+
 ## 1. Overview
 
 TaskFlow is a small full-stack task management app built for the take-home assignment.
