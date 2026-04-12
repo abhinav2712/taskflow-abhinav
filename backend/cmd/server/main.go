@@ -15,6 +15,7 @@ import (
 
 	"github.com/abhinav2712/taskflow-abhinav/config"
 	"github.com/abhinav2712/taskflow-abhinav/db"
+	apidocs "github.com/abhinav2712/taskflow-abhinav/docs"
 	"github.com/abhinav2712/taskflow-abhinav/handler"
 	"github.com/abhinav2712/taskflow-abhinav/middleware"
 )
@@ -37,6 +38,11 @@ func main() {
 		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type"},
 	}))
 	router.Use(middleware.Logger)
+
+	router.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/docs/", http.StatusMovedPermanently)
+	})
+	router.Mount("/docs/", http.StripPrefix("/docs/", apidocs.Handler()))
 
 	// Public auth routes — no auth middleware
 	router.Post("/auth/register", handler.Register(pool, cfg.JWTSecret))

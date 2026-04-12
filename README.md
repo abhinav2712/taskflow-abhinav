@@ -56,6 +56,7 @@ docker compose up --build
 Services:
 - Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:8080`
+- Swagger docs: `http://localhost:8080/docs/`
 - PostgreSQL: `localhost:5432`
 
 Notes:
@@ -131,6 +132,7 @@ npm run dev
 Default local URLs:
 - Frontend dev server: `http://localhost:5173`
 - Backend API: `http://localhost:8080`
+- Swagger docs: `http://localhost:8080/docs/`
 
 ## 4. Running Migrations
 
@@ -192,6 +194,8 @@ psql "$DATABASE_URL" -f backend/seeds/cleanup.sql
 ## 6. API Reference
 
 All responses are JSON.
+
+Full API documentation (Swagger) is available at `http://localhost:8080/docs/`.
 
 ### Auth
 
