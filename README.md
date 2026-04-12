@@ -1,293 +1,284 @@
-# TaskFlow
+<div align="center">
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c5cb25a1-0def-4c4f-854f-b0029051edf4" />
+<img width="1920" alt="TaskFlow desktop UI" src="https://github.com/user-attachments/assets/c5cb25a1-0def-4c4f-854f-b0029051edf4" />
+
+<h1>TaskFlow</h1>
+
+<p>A minimal, production-quality task management app — built as a take-home assignment.</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Go-1.22-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go" />
+  <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/JWT-Auth-000000?style=flat-square&logo=jsonwebtokens&logoColor=white" alt="JWT" />
+</p>
+
+</div>
+
+---
+
+## Table of Contents
+
+1. [Overview](#1-overview)
+2. [Architecture Decisions](#2-architecture-decisions)
+3. [Project Structure](#3-project-structure)
+4. [Running Locally](#4-running-locally)
+5. [Running Migrations](#5-running-migrations)
+6. [Test Credentials](#6-test-credentials)
+7. [API Reference](#7-api-reference)
+8. [What I'd Do With More Time](#8-what-id-do-with-more-time)
+9. [AI Assistance Disclosure](#9-ai-assistance-disclosure)
+
+---
 
 ## 1. Overview
 
-TaskFlow is a small full-stack task management app built for the take-home assignment.
+TaskFlow lets users register, log in, create projects, and manage tasks — with status filters, assignee selection, optimistic UI updates, and a dark mode that persists across sessions.
 
-It includes:
-- Go + Chi backend
-- PostgreSQL database
-- React + TypeScript + Vite frontend
-- JWT-based authentication
-- Projects and tasks CRUD
-- task filtering and optimistic status updates in the UI
+| Layer | Choice |
+|---|---|
+| Backend | Go 1.22 + [chi](https://github.com/go-chi/chi) router |
+| Database | PostgreSQL 15 |
+| Migrations | [golang-migrate](https://github.com/golang-migrate/migrate) (embedded, auto-run on startup) |
+| Auth | bcrypt (cost 12) + JWT (24 h expiry, stateless) |
+| Frontend | React 18 + TypeScript + Vite |
+| State | Zustand with `persist` middleware |
+| Styling | Custom CSS — Zomato-inspired card UI, dark mode |
+| Containers | Docker + Docker Compose |
 
-The repo is structured as a simple monorepo:
-- `backend/` for the Go API
-- `frontend/` for the React app
+---
 
 ## 2. Architecture Decisions
 
-- Backend framework: `chi`
-  - Keeps routing small and explicit without adding a larger framework.
-- Backend structure: `handler -> store`
-  - Handlers own HTTP concerns.
-  - Stores own SQL/database access.
-  - No service layer was added to keep the project aligned with the assignment and easy to review.
-- Database migrations:
-  - SQL migrations live in `backend/db/migrations/`.
-  - They are embedded into the Go binary and executed on backend startup.
-  - Seed data is part of the migration set rather than a separate manual script.
-- Frontend routing:
-  - React Router is used for navigation and protected routes.
-- Frontend state:
-  - Zustand with `persist` is used for auth state so JWT/user data survive refreshes.
-- UI approach:
-  - Custom React components + custom CSS were used.
-  - No external component library was added.
-  - The visual direction is a lightweight Zomato-inspired card UI with responsive layouts.
+### `handler → store` — no service layer
+Handlers own HTTP concerns (parsing, validation, status codes).
+Stores own SQL (queries, scanning, error wrapping).
+No service layer was added — the business logic is simple enough that one would add indirection without benefit. If domain logic grew significantly, a service layer would be the first thing I'd introduce.
 
-## 3. Running Locally
+### Migrations embedded in the binary
+SQL files live in `backend/db/migrations/` and are embedded via `//go:embed` at compile time. The backend applies them automatically on startup using `golang-migrate`. `docker compose up` is truly zero-step — no separate migration command needed.
 
-### Option A: Docker Compose
+### Seed data as a migration
+The test user and demo data are in `000002_seed.up.sql`. They run on first startup alongside the schema, making the reviewer experience friction-free: clone → compose up → log in.
 
-1. Create the root env file:
+### JWT is stateless
+No token blacklist, no refresh tokens. Tokens expire after 24 hours. Sufficient for a take-home; a production system would add refresh tokens and a revocation store.
 
-```bash
-cp .env.example .env
+### 401 vs 403 are always distinct
+`401 Unauthorized` — missing or invalid token (not authenticated).
+`403 Forbidden` — valid token, wrong user (authenticated, but not allowed).
+These are separate code paths throughout all handlers.
+
+### Frontend state with Zustand
+Auth state (token + user) is persisted to `localStorage` via Zustand's `persist` middleware. The app hydrates immediately on refresh without hitting the backend. Dark mode preference is persisted in the same way.
+
+### Optimistic task status updates
+Changing a task's status updates the UI immediately, then syncs to the API. If the API call fails, the previous state is restored and an error banner is shown — no silent failures.
+
+### What was intentionally left out
+- No service layer (handler → store is sufficient for this scope)
+- No refresh tokens (out of scope)
+- No drag-and-drop (not required)
+- No pagination (not required; first addition at scale)
+- `GET /users` returns all users — in production would be scoped to project members
+
+---
+
+## 3. Project Structure
+
+```
+taskflow-abhinav/
+├── docker-compose.yml          # Starts postgres + backend + frontend
+├── .env.example                # Environment variable template
+│
+├── backend/
+│   ├── cmd/server/main.go      # Entrypoint — config, DB, router, graceful shutdown
+│   ├── config/config.go        # Loads DATABASE_URL, JWT_SECRET, API_PORT
+│   ├── db/
+│   │   ├── db.go               # pgxpool setup + runs embedded migrations on startup
+│   │   └── migrations/
+│   │       ├── 000001_init.{up,down}.sql
+│   │       ├── 000002_seed.{up,down}.sql
+│   │       └── 000003_project_updated_at.{up,down}.sql
+│   ├── handler/
+│   │   ├── auth.go             # POST /auth/register, POST /auth/login
+│   │   ├── projects.go         # CRUD /projects
+│   │   ├── tasks.go            # CRUD /projects/:id/tasks + /tasks/:id
+│   │   ├── users.go            # GET /users
+│   │   └── helpers.go          # encode, decode, writeError, writeValidationError
+│   ├── middleware/
+│   │   ├── auth.go             # JWT → injects user_id + email into context
+│   │   └── logger.go           # Structured request log
+│   ├── model/models.go         # User, Project, Task structs (json:"-" on password)
+│   ├── store/
+│   │   ├── user.go             # CreateUser, GetUserByEmail, ListUsers
+│   │   ├── project.go          # Full project CRUD
+│   │   └── task.go             # Full task CRUD + dynamic filters
+│   ├── docs/openapi.json       # OpenAPI 3.0 spec → served at /docs/
+│   ├── seeds/                  # Manual re-seed + cleanup helpers
+│   ├── Dockerfile              # Multi-stage build (builder → slim runtime)
+│   └── Makefile                # tidy | test | build | run | dev
+│
+└── frontend/
+    ├── src/
+    │   ├── main.tsx             # Entry — applies stored theme before React hydrates
+    │   ├── App.tsx              # Router + syncs html.dark class from theme store
+    │   ├── styles.css           # Full design system + dark mode overrides
+    │   ├── api/client.ts        # Axios + authApi, projectsApi, tasksApi, usersApi
+    │   ├── store/
+    │   │   ├── auth.ts          # Zustand persisted — token + user
+    │   │   └── theme.ts         # Zustand persisted — dark toggle
+    │   ├── types/index.ts       # TypeScript interfaces for all API shapes
+    │   ├── components/
+    │   │   ├── Navbar.tsx           # Brand, user, dark mode toggle, logout
+    │   │   ├── ProtectedRoute.tsx   # Redirects unauthenticated → /login
+    │   │   ├── ProjectCard.tsx      # Project card with hover animation
+    │   │   ├── CreateProjectModal.tsx
+    │   │   ├── TaskCard.tsx         # Inline status change + assignee/date chips
+    │   │   └── TaskModal.tsx        # Create/edit task (real user dropdown)
+    │   └── pages/
+    │       ├── LoginPage.tsx / RegisterPage.tsx
+    │       ├── ProjectsPage.tsx     # Skeleton loading + empty state
+    │       ├── ProjectDetailPage.tsx # Filters + optimistic updates
+    │       └── NotFoundPage.tsx
+    ├── Dockerfile               # Vite build → nginx
+    └── vite.config.ts
 ```
 
-2. Start the full stack:
+---
+
+## 4. Running Locally
+
+###  Option A — Docker Compose (recommended)
+
+> Requires: **Docker Desktop only**. Nothing else needs to be installed.
 
 ```bash
+git clone https://github.com/abhinav2712/taskflow-abhinav.git
+cd taskflow-abhinav
+cp .env.example .env
 docker compose up --build
 ```
 
-Services:
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8080`
-- Swagger docs: `http://localhost:8080/docs/`
-- PostgreSQL: `localhost:5432`
+| Service | URL |
+|---|---|
+|  Frontend | http://localhost:3000 |
+|  Backend API | http://localhost:8080 |
+|  API Docs (OpenAPI) | http://localhost:8080/docs/ |
+|  PostgreSQL | localhost:5432 |
 
-Notes:
-- The backend waits for Postgres health before starting.
-- On backend startup, embedded migrations are applied automatically.
-- The seed migration is also applied automatically.
+**What happens automatically:**
+- Postgres starts with a healthcheck
+- Backend waits for Postgres, then runs all migrations (schema + seed) on startup
+- Frontend is served via nginx on port 3000
 
-### Option B: Run Backend + Frontend Separately
-
-1. Create the root env file:
-
+**Reset everything (wipe DB + reseed):**
 ```bash
-cp .env.example .env
+docker compose down -v && docker compose up --build
 ```
 
-2. Start PostgreSQL separately.
+---
 
-3. Install backend dependencies:
+###  Option B — Run services separately
 
+> Requires: Go 1.22+, Node 18+, a running PostgreSQL instance.
+
+**Backend:**
 ```bash
+cp .env.example .env
+# Edit .env — set DATABASE_URL to your local Postgres
+
 cd backend
 go mod tidy
+make run        # auto-applies migrations on startup
+# make dev      # hot reload via air (go install github.com/air-verse/air@latest)
 ```
 
-4. Run backend tests:
-
+**Frontend:**
 ```bash
-make test
-```
-
-This runs the package-level backend tests.
-
-For integration tests in `backend/tests/`, set `TEST_DATABASE_URL` first and run:
-
-```bash
-TEST_DATABASE_URL=postgres://taskflow:taskflow_secret@localhost:5432/taskflow?sslmode=disable make test-integration
-```
-
-5. Run the backend:
-
-```bash
-make run
-```
-
-6. For hot reload during backend development:
-
-```bash
-make dev
-```
-
-`make dev` uses `air` if it is installed. If `air` is not installed, it falls back to `go run ./cmd/server`.
-
-Install `air` once with:
-
-```bash
-go install github.com/air-verse/air@latest
-```
-
-7. For the Vite frontend, create `frontend/.env` with:
-
-```bash
-VITE_API_URL=http://localhost:8080
-```
-
-8. Run the frontend:
-
-```bash
+echo "VITE_API_URL=http://localhost:8080" > frontend/.env
 cd frontend
 npm install
-npm run dev
+npm run dev     # http://localhost:5173
 ```
 
-Default local URLs:
-- Frontend dev server: `http://localhost:5173`
-- Backend API: `http://localhost:8080`
-- Swagger docs: `http://localhost:8080/docs/`
+> CORS is configured for both `http://localhost:3000` (Docker) and `http://localhost:5173` (Vite dev).
 
-## 4. Running Migrations
+---
 
-There is no separate custom migration CLI in this project.
+## 5. Running Migrations
 
-Migration strategy:
-- SQL files are stored in `backend/db/migrations/`
-- the backend embeds them with `go:embed`
-- the backend runs them on startup using `golang-migrate`
+Migrations run **automatically** on every backend startup — no manual step required.
 
-Current migration set:
-- `000001_init` - schema
-- `000002_seed` - seed data
-- `000003_project_updated_at` - follow-up schema tweak
+```
+backend/db/migrations/
+├── 000001_init.{up,down}.sql                  ← users, projects, tasks schema
+├── 000002_seed.{up,down}.sql                  ← test user + demo project + tasks
+└── 000003_project_updated_at.{up,down}.sql    ← added updated_at to projects
+```
 
-Practical usage:
-- `docker compose up --build` will start Postgres and then the backend, which applies migrations automatically
-- `go run ./cmd/server` also applies migrations automatically when running the backend locally
+They are embedded in the Go binary (`//go:embed`) and applied via `golang-migrate`. State is tracked in `schema_migrations`.
 
-Optional manual seed files are also available in `backend/seeds/`:
-- `backend/seeds/test_data.sql`
-- `backend/seeds/cleanup.sql`
-
-Those mirror the migration seed data and are useful if you want to reapply or remove the fixed reviewer dataset manually after the schema already exists.
-
-Integration test notes:
-- `backend/tests/` contains black-box HTTP integration tests
-- they expect a reachable PostgreSQL database via `TEST_DATABASE_URL`
-- they reuse the migrated schema and existing seeded reviewer data
-
-If you want a clean reseed with Docker:
-
+**Manual seed helpers** (if schema already exists):
 ```bash
-docker compose down -v
-docker compose up --build
+psql "$DATABASE_URL" -f backend/seeds/test_data.sql   # re-apply seed data
+psql "$DATABASE_URL" -f backend/seeds/cleanup.sql      # remove seed data
 ```
 
-That recreates the database volume, reapplies the schema migrations, and reapplies the seed migration.
+---
 
-## 5. Test Credentials
+## 6. Test Credentials
 
-Seeded reviewer account:
+> The seed migration creates a test account automatically. No registration step needed.
 
-- Email: `test@example.com`
-- Password: `password123`
-
-Seeded data also includes:
-- 1 test user
-- 1 demo project
-- 3 demo tasks with different statuses
-
-Manual seed helpers:
-
-```bash
-psql "$DATABASE_URL" -f backend/seeds/test_data.sql
-psql "$DATABASE_URL" -f backend/seeds/cleanup.sql
+```
+Email:    test@example.com
+Password: password123
 ```
 
-## 6. API Reference
+The seed also creates:
+-  1 demo project: **"Website Redesign"**
+-  3 demo tasks with statuses: `todo`, `in_progress`, `done`
 
-All responses are JSON.
-
-Full API documentation (Swagger) is available at `http://localhost:8080/docs/`.
-
-### Auth
-
-- `POST /auth/register`
-- `POST /auth/login`
-
-### Users
-
-- `GET /users`
-  - Protected
-  - Returns `id`, `name`, and `email` for available users
-
-### Projects
-
-- `GET /projects`
-  - Protected
-  - Returns projects visible to the authenticated user
-- `POST /projects`
-  - Protected
-  - Creates a project owned by the authenticated user
-- `GET /projects/:id`
-  - Protected
-  - Returns project details and its tasks
-- `PATCH /projects/:id`
-  - Protected
-  - Owner only
-- `DELETE /projects/:id`
-  - Protected
-  - Owner only
-
-### Tasks
-
-- `GET /projects/:id/tasks`
-  - Protected
-  - Supports optional filters:
-    - `?status=todo|in_progress|done`
-    - `?assignee=<user-id>`
-- `POST /projects/:id/tasks`
-  - Protected
-  - Creates a task inside the project
-- `PATCH /tasks/:id`
-  - Protected
-  - Supports updating title, description, status, priority, assignee, and due date
-- `DELETE /tasks/:id`
-  - Protected
-  - Allowed for the project owner or the task creator
-
-### Common Error Shapes
-
-- `400`
-
-```json
-{
-  "error": "validation failed",
-  "fields": {
-    "name": "is required"
-  }
-}
-```
-
-- `401`
-
-```json
-{
-  "error": "unauthorized"
-}
-```
-
-- `403`
-
-```json
-{
-  "error": "forbidden"
-}
-```
-
-- `404`
-
-```json
-{
-  "error": "not found"
-}
-```
+---
 
 ## 7. What I'd Do With More Time
 
-- Add backend tests for handlers and store queries
-- Add frontend integration tests for auth, projects, and task flows
-- Improve assignee filtering to support all users directly from the UI
-- Add pagination and search for larger project/task lists
-- Add retry actions on error states in the frontend
-- Tighten Docker polish further with smaller runtime images and explicit healthchecks for the app containers
-- Add a production-focused deployment note section
+**Features**
+- **Drag-and-drop** — move tasks between status groups (`todo → in_progress → done`) with optimistic updates and API rollback on failure
+- **Scoped user list** — `GET /users` currently returns all users system-wide; would scope it to members of the project (owners + assignees) in production
+- **Null-clearing in PATCH** — assignee and due date can be set but not cleared back to `NULL`; would introduce a three-state nullable type (`present / null / value`) for those fields
+
+**Frontend**
+- **Lazy-load project detail page** — split the bundle so `/projects/:id` loads separately, reducing initial load time
+- **Unit tests** — Jest + React Testing Library for auth forms, optimistic update logic, and task modal
+- **Toast notifications** — replace inline feedback banners with proper toasts for creates/updates/deletes
+
+**Backend**
+- **Integration tests** — full handler-level HTTP tests for all routes (a `tests/` skeleton already exists)
+- **Rate limiting** — prevent abuse on auth routes (`/auth/register`, `/auth/login`)
+- **Redis caching** — cache frequently read data (project lists, user lists) to reduce DB load
+- **Webhooks** — emit events on task status changes for external integrations
+- **More granular error codes** — distinguish between different 400/500 failure sub-types instead of generic messages
+
+**Infrastructure**
+- **Backend healthcheck** — add an explicit `GET /healthz` endpoint and wire it into `docker-compose.yml`
+- **Smaller production images** — switch to distroless or minimal Alpine base for both backend and frontend Docker images
+- **CI/CD pipelines** — automate `go test`, `npm run build`, and linting on every pull request via GitHub Actions
+
+---
+
+## 9. AI Assistance Disclosure
+
+This project was developed with AI assistance, with manual oversight, testing, and all architectural decisions made by me.
+
+| Phase | Tool | Role |
+|---|---|---|
+| Planning & architecture | Claude | Draft architecture, folder structure, execution plan |
+| Backend implementation | Codex | Auth, projects, tasks APIs per the planned architecture |
+| Frontend implementation | Codex | React app scaffold, auth flow, routing, projects/tasks UI |
+| Review & refinement | Manual | Auth edge cases, 401/403 separation, optimistic rollback, UX |
+
+All AI-generated code was reviewed, tested manually (curl + browser), and adjusted to ensure correctness and alignment with the assignment requirements.
