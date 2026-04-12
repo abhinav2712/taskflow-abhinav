@@ -73,20 +73,54 @@ cp .env.example .env
 
 2. Start PostgreSQL separately.
 
-3. Run the backend:
+3. Install backend dependencies:
 
 ```bash
 cd backend
-go run ./cmd/server
+go mod tidy
 ```
 
-4. For the Vite frontend, create `frontend/.env` with:
+4. Run backend tests:
+
+```bash
+make test
+```
+
+This runs the package-level backend tests.
+
+For integration tests in `backend/tests/`, set `TEST_DATABASE_URL` first and run:
+
+```bash
+TEST_DATABASE_URL=postgres://taskflow:taskflow_secret@localhost:5432/taskflow?sslmode=disable make test-integration
+```
+
+5. Run the backend:
+
+```bash
+make run
+```
+
+6. For hot reload during backend development:
+
+```bash
+make dev
+```
+
+`make dev` uses `air` if it is installed. If `air` is not installed, it falls back to `go run ./cmd/server`.
+
+Install `air` once with:
+
+```bash
+go install github.com/air-verse/air@latest
+```
+
+7. For the Vite frontend, create `frontend/.env` with:
 
 ```bash
 VITE_API_URL=http://localhost:8080
 ```
 
-5. Run the frontend:
+8. Run the frontend:
 
 ```bash
 cd frontend
@@ -116,6 +150,17 @@ Practical usage:
 - `docker compose up --build` will start Postgres and then the backend, which applies migrations automatically
 - `go run ./cmd/server` also applies migrations automatically when running the backend locally
 
+Optional manual seed files are also available in `backend/seeds/`:
+- `backend/seeds/test_data.sql`
+- `backend/seeds/cleanup.sql`
+
+Those mirror the migration seed data and are useful if you want to reapply or remove the fixed reviewer dataset manually after the schema already exists.
+
+Integration test notes:
+- `backend/tests/` contains black-box HTTP integration tests
+- they expect a reachable PostgreSQL database via `TEST_DATABASE_URL`
+- they reuse the migrated schema and existing seeded reviewer data
+
 If you want a clean reseed with Docker:
 
 ```bash
@@ -136,6 +181,13 @@ Seeded data also includes:
 - 1 test user
 - 1 demo project
 - 3 demo tasks with different statuses
+
+Manual seed helpers:
+
+```bash
+psql "$DATABASE_URL" -f backend/seeds/test_data.sql
+psql "$DATABASE_URL" -f backend/seeds/cleanup.sql
+```
 
 ## 6. API Reference
 
