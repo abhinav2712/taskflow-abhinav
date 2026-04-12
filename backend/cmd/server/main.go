@@ -47,8 +47,16 @@ func main() {
 		r.Get("/", handler.ListProjects(pool))
 		r.Post("/", handler.CreateProject(pool))
 		r.Get("/{id}", handler.GetProject(pool))
+		r.Get("/{id}/tasks", handler.ListTasks(pool))
+		r.Post("/{id}/tasks", handler.CreateTask(pool))
 		r.Patch("/{id}", handler.UpdateProject(pool))
 		r.Delete("/{id}", handler.DeleteProject(pool))
+	})
+
+	router.Route("/tasks", func(r chi.Router) {
+		r.Use(middleware.Authenticate(cfg.JWTSecret))
+		r.Patch("/{id}", handler.UpdateTask(pool))
+		r.Delete("/{id}", handler.DeleteTask(pool))
 	})
 
 	srv := &http.Server{
