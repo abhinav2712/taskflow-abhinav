@@ -12,6 +12,7 @@ import type {
   Task,
   UpdateProjectData,
   UpdateTaskData,
+  UsersResponse,
 } from "types";
 
 export const api = axios.create({
@@ -97,6 +98,13 @@ export const tasksApi = {
   },
   delete: async (id: string) => {
     await api.delete(`/tasks/${id}`);
+  },
+};
+
+export const usersApi = {
+  list: async () => {
+    const response = await api.get<UsersResponse>("/users");
+    return response.data;
   },
 };
 

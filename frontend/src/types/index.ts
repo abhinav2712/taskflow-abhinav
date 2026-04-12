@@ -50,6 +50,10 @@ export interface TasksResponse {
   tasks: Task[];
 }
 
+export interface UsersResponse {
+  users: User[];
+}
+
 export interface CreateProjectData {
   name: string;
   description?: string;

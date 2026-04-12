@@ -51,3 +51,34 @@ func GetUserByEmail(ctx context.Context, pool *pgxpool.Pool, email string) (mode
 
 	return user, err
 }
+
+func ListUsers(ctx context.Context, pool *pgxpool.Pool) ([]model.User, error) {
+	const query = `
+		SELECT id, name, email, created_at
+		FROM users
+		ORDER BY name ASC, email ASC
+	`
+
+	rows, err := pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := make([]model.User, 0)
+	for rows.Next() {
+		var user model.User
+		if err := rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, rows.Err()
+}

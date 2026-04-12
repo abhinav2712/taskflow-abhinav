@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { getApiErrorMessage, projectsApi, tasksApi } from "api/client";
+import { getApiErrorMessage, projectsApi, tasksApi, usersApi } from "api/client";
 import Navbar from "components/Navbar";
 import TaskCard from "components/TaskCard";
 import TaskModal from "components/TaskModal";
 import { useAuthStore } from "store/auth";
-import type { Project, Task, TaskStatus } from "types";
+import type { Project, Task, TaskStatus, User } from "types";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,7 +14,9 @@ export default function ProjectDetailPage() {
   const currentUserId = user?.id ?? "";
 
   const [project, setProject] = useState<Project | null>(null);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export default function ProjectDetailPage() {
           return;
         }
         setProject(projectResponse);
+        setAllTasks(projectResponse.tasks ?? []);
         setTasks(projectResponse.tasks ?? []);
       } catch (loadError) {
         if (!cancelled) {
@@ -69,6 +72,29 @@ export default function ProjectDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadUsers() {
+      try {
+        const response = await usersApi.list();
+        if (!cancelled) {
+          setUsers(response.users);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setFeedback(getApiErrorMessage(loadError).error);
+        }
+      }
+    }
+
+    void loadUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!id || !project) {
       return;
     }
@@ -77,8 +103,8 @@ export default function ProjectDetailPage() {
     let cancelled = false;
 
     async function loadFilteredTasks() {
-      // Skip the API call if no filters are active — initial tasks come from GetProject
       if (!statusFilter && !assigneeFilter) {
+        setTasks(allTasks);
         return;
       }
 
@@ -108,12 +134,15 @@ export default function ProjectDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, statusFilter, assigneeFilter]);
+  }, [id, project, statusFilter, assigneeFilter, allTasks]);
 
   async function handleOptimisticStatusChange(taskId: string, status: TaskStatus) {
     const previousTasks = tasks;
+    const previousAllTasks = allTasks;
+    const nextAllTasks = allTasks.map((task) => (task.id === taskId ? { ...task, status } : task));
 
     setFeedback(null);
+    setAllTasks(nextAllTasks);
     setTasks((currentTasks) => {
       const nextTasks = currentTasks.map((task) => (task.id === taskId ? { ...task, status } : task));
       return nextTasks.filter(matchesActiveFilters);
@@ -121,6 +150,9 @@ export default function ProjectDetailPage() {
 
     try {
       const updatedTask = await tasksApi.update(taskId, { status });
+      setAllTasks((currentTasks) =>
+        currentTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+      );
       setTasks((currentTasks) => {
         if (!matchesActiveFilters(updatedTask)) {
           return currentTasks.filter((task) => task.id !== updatedTask.id);
@@ -129,6 +161,7 @@ export default function ProjectDetailPage() {
         return currentTasks.map((task) => (task.id === updatedTask.id ? updatedTask : task));
       });
     } catch (updateError) {
+      setAllTasks(previousAllTasks);
       setTasks(previousTasks);
       setFeedback(getApiErrorMessage(updateError).error);
     }
@@ -136,18 +169,31 @@ export default function ProjectDetailPage() {
 
   async function handleDeleteTask(task: Task) {
     const previousTasks = tasks;
+    const previousAllTasks = allTasks;
     setFeedback(null);
+    setAllTasks((currentTasks) => currentTasks.filter((currentTask) => currentTask.id !== task.id));
     setTasks((currentTasks) => currentTasks.filter((currentTask) => currentTask.id !== task.id));
 
     try {
       await tasksApi.delete(task.id);
     } catch (deleteError) {
+      setAllTasks(previousAllTasks);
       setTasks(previousTasks);
       setFeedback(getApiErrorMessage(deleteError).error);
     }
   }
 
   function handleTaskSaved(savedTask: Task) {
+    setAllTasks((currentTasks) => {
+      const existingIndex = currentTasks.findIndex((task) => task.id === savedTask.id);
+
+      if (existingIndex >= 0) {
+        return currentTasks.map((task) => (task.id === savedTask.id ? savedTask : task));
+      }
+
+      return [savedTask, ...currentTasks];
+    });
+
     setTasks((currentTasks) => {
       if (!matchesActiveFilters(savedTask)) {
         return currentTasks.filter((task) => task.id !== savedTask.id);
@@ -161,6 +207,19 @@ export default function ProjectDetailPage() {
 
       return [savedTask, ...currentTasks];
     });
+  }
+
+  function getAssigneeLabel(task: Task) {
+    if (!task.assignee_id) {
+      return null;
+    }
+
+    if (task.assignee_id === user?.id) {
+      return "Me";
+    }
+
+    const matchedUser = users.find((candidate) => candidate.id === task.assignee_id);
+    return matchedUser?.name ?? task.assignee_id;
   }
 
   if (loading) {
@@ -237,15 +296,12 @@ export default function ProjectDetailPage() {
               </select>
             </label>
 
-            <label className="field field--inline">
-              <input
-                type="checkbox"
-                checked={!!assigneeFilter}
-                onChange={(event) =>
-                  setAssigneeFilter(event.target.checked ? currentUserId : "")
-                }
-              />
-              <span>Show only my tasks</span>
+            <label className="field">
+              <span>Assignee</span>
+              <select value={assigneeFilter} onChange={(event) => setAssigneeFilter(event.target.value)}>
+                <option value="">All assignees</option>
+                <option value={currentUserId}>Only my tasks</option>
+              </select>
             </label>
           </div>
         </section>
@@ -262,6 +318,7 @@ export default function ProjectDetailPage() {
           ) : (
             tasks.map((task) => (
               <TaskCard
+                assigneeLabel={getAssigneeLabel(task)}
                 key={task.id}
                 currentUserId={user?.id ?? ""}
                 onDelete={handleDeleteTask}

@@ -18,6 +18,99 @@
   --radius-sm: 12px;
 }
 
+/* ── Dark mode overrides ─────────────────────────────── */
+html.dark {
+  --color-text: #f0f0f0;
+  --color-muted: #9ca3af;
+  --color-surface: #1e1e2e;
+  --color-surface-soft: #16161f;
+  --color-border: #2e2e3e;
+  --color-background: #13131c;
+  --color-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+}
+
+html.dark body {
+  background: radial-gradient(circle at top left, rgba(239, 79, 95, 0.07), transparent 28%),
+    linear-gradient(180deg, #13131c 0%, #0e0e16 100%);
+  color: var(--color-text);
+}
+
+html.dark .navbar {
+  background: rgba(22, 22, 32, 0.92);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .hero-card,
+html.dark .auth-card,
+html.dark .placeholder-card,
+html.dark .not-found-card,
+html.dark .projects-header,
+html.dark .project-hero,
+html.dark .filters-card,
+html.dark .project-card,
+html.dark .task-card,
+html.dark .modal-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .modal-backdrop {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+html.dark .button--ghost {
+  background: #252535;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+html.dark .button--ghost:hover {
+  background: #2e2e42;
+}
+
+html.dark .field input,
+html.dark .field select,
+html.dark .field__textarea {
+  background: #16161f;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+html.dark .field input:focus,
+html.dark .field select:focus,
+html.dark .field__textarea:focus {
+  background: #1e1e2e;
+}
+
+html.dark .inline-select select {
+  background: #1e1e2e;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+html.dark .task-chip {
+  background: #252535;
+  border-color: var(--color-border);
+  color: #d1d5db;
+}
+
+html.dark .task-chip--date {
+  background: #1e2a40;
+  border-color: #2a3f60;
+  color: #93c5fd;
+}
+
+html.dark .skeleton-line {
+  background: linear-gradient(90deg, #252535, #1e1e2e, #252535);
+}
+
+html.dark .form-message {
+  background: #2d1b1f;
+  border-color: #5c2a32;
+}
+/* ── end dark mode ───────────────────────────────────── */
+
+
 * {
   box-sizing: border-box;
 }
@@ -290,6 +383,28 @@ textarea {
   text-decoration: none;
 }
 
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--color-surface-soft);
+  border-color: var(--color-primary);
+  transform: rotate(20deg);
+}
+
+
 .auth-card__footer {
   margin: 20px 0 0;
   color: var(--color-muted);
@@ -520,6 +635,36 @@ textarea {
   background: #fff0f2;
   color: #d2364b;
 }
+
+/* Task meta chips: assignee, due date */
+.task-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.task-chip--date {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.task-chip--muted {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  padding: 5px 0;
+}
+
+
 
 .inline-select {
   display: grid;

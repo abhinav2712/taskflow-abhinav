@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
-import { getApiErrorMessage, tasksApi } from "api/client";
+import { getApiErrorMessage, tasksApi, usersApi } from "api/client";
 import { useAuthStore } from "store/auth";
-import type { Task, TaskPriority, TaskStatus } from "types";
+import type { Task, TaskPriority, TaskStatus, User } from "types";
 
 interface TaskModalProps {
   open: boolean;
@@ -22,6 +22,9 @@ export default function TaskModal({ open, onClose, projectId, task, onSaved }: T
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [assigneeId, setAssigneeId] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -44,9 +47,52 @@ export default function TaskModal({ open, onClose, projectId, task, onSaved }: T
     setSubmitting(false);
   }, [open, task]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function loadUsers() {
+      setUsersLoading(true);
+      setUsersError(null);
+
+      try {
+        const response = await usersApi.list();
+        if (!isCancelled) {
+          setUsers(response.users);
+        }
+      } catch (loadError) {
+        if (!isCancelled) {
+          const apiError = getApiErrorMessage(loadError);
+          setUsersError(apiError.error);
+          setUsers([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setUsersLoading(false);
+        }
+      }
+    }
+
+    void loadUsers();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
+
+  const meOption = currentUser ? { value: currentUser.id, label: `Me (${currentUser.name})` } : null;
+  const otherUsers = users.filter((user) => user.id !== currentUser?.id);
+  const assigneeExists =
+    assigneeId === "" ||
+    users.some((user) => user.id === assigneeId) ||
+    currentUser?.id === assigneeId;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,15 +193,20 @@ export default function TaskModal({ open, onClose, projectId, task, onSaved }: T
 
             <label className="field">
               <span>Assignee</span>
-              <select
-                value={assigneeId}
-                onChange={(event) => setAssigneeId(event.target.value)}
-              >
+              <select value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}>
                 <option value="">Unassigned</option>
-                {currentUser ? (
-                  <option value={currentUser.id}>Me — {currentUser.name}</option>
+                {meOption ? <option value={meOption.value}>{meOption.label}</option> : null}
+                {otherUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+                {!assigneeExists && assigneeId ? (
+                  <option value={assigneeId}>Current assignee</option>
                 ) : null}
               </select>
+              {usersLoading ? <small>Loading assignees...</small> : null}
+              {usersError ? <small>{usersError}</small> : null}
               {fieldErrors.assignee_id || fieldErrors.assignee ? (
                 <small>{fieldErrors.assignee_id ?? fieldErrors.assignee}</small>
               ) : null}

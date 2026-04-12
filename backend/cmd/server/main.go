@@ -59,6 +59,11 @@ func main() {
 		r.Delete("/{id}", handler.DeleteTask(pool))
 	})
 
+	router.Route("/users", func(r chi.Router) {
+		r.Use(middleware.Authenticate(cfg.JWTSecret))
+		r.Get("/", handler.ListUsers(pool))
+	})
+
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
 		Handler: router,

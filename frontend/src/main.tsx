@@ -3,7 +3,11 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
+import { applyStoredTheme } from "./store/theme";
 import "./styles.css";
+
+// Apply persisted theme immediately to avoid flash of wrong theme
+applyStoredTheme();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
