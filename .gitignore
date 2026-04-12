@@ -27,6 +27,8 @@ go.work.sum
 # env file
 .env
 backend/taskflow-api
+backend/.cache/
+backend/tmp/
 frontend/node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
