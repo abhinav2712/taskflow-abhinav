@@ -213,6 +213,13 @@ Required:
 - responsive behavior for mobile and desktop
 - no silent failures
 
+UI:
+
+- card layout
+- Zomato theme colors
+- hover effects
+- responsive layout
+
 Also implement optimistic UI for task status changes:
 - update immediately in UI
 - revert on API error

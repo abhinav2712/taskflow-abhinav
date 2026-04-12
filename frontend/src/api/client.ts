@@ -1,7 +1,18 @@
 import axios from "axios";
 
 import { useAuthStore } from "store/auth";
-import type { ApiErrorResponse, AuthResponse } from "types";
+import type {
+  ApiErrorResponse,
+  AuthResponse,
+  CreateProjectData,
+  CreateTaskData,
+  Project,
+  ProjectsResponse,
+  TasksResponse,
+  Task,
+  UpdateProjectData,
+  UpdateTaskData,
+} from "types";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -40,6 +51,52 @@ export const authApi = {
   register: async (payload: { name: string; email: string; password: string }) => {
     const response = await api.post<AuthResponse>("/auth/register", payload);
     return response.data;
+  },
+};
+
+export const projectsApi = {
+  list: async () => {
+    const response = await api.get<ProjectsResponse>("/projects");
+    return response.data;
+  },
+  create: async (payload: CreateProjectData) => {
+    const response = await api.post<Project>("/projects", payload);
+    return response.data;
+  },
+  get: async (id: string) => {
+    const response = await api.get<Project>(`/projects/${id}`);
+    return response.data;
+  },
+  update: async (id: string, payload: UpdateProjectData) => {
+    const response = await api.patch<Project>(`/projects/${id}`, payload);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    await api.delete(`/projects/${id}`);
+  },
+};
+
+export const tasksApi = {
+  list: async (projectId: string, filters?: { status?: string; assignee?: string }) => {
+    const response = await api.get<TasksResponse>(`/projects/${projectId}/tasks`, {
+      params: {
+        status: filters?.status || undefined,
+        assignee: filters?.assignee || undefined,
+      },
+    });
+
+    return response.data;
+  },
+  create: async (projectId: string, payload: CreateTaskData) => {
+    const response = await api.post<Task>(`/projects/${projectId}/tasks`, payload);
+    return response.data;
+  },
+  update: async (id: string, payload: UpdateTaskData) => {
+    const response = await api.patch<Task>(`/tasks/${id}`, payload);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    await api.delete(`/tasks/${id}`);
   },
 };
 
