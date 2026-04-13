@@ -37,6 +37,9 @@
 
 TaskFlow lets users register, log in, create projects, and manage tasks — with status filters, assignee selection, optimistic UI updates, and a dark mode that persists across sessions.
 
+Hosted app:
+- https://taskflow-abhinav.up.railway.app/login
+
 | Layer | Choice |
 |---|---|
 | Backend | Go 1.22 + [chi](https://github.com/go-chi/chi) router |
