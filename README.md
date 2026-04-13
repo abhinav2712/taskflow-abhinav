@@ -204,7 +204,9 @@ npm install
 npm run dev     # http://localhost:5173
 ```
 
-> CORS is configured for both `http://localhost:3000` (Docker) and `http://localhost:5173` (Vite dev).
+> CORS defaults to `http://localhost:3000` (Docker) and `http://localhost:5173` (Vite dev).
+> For Railway or any hosted frontend, set `ALLOWED_ORIGINS` to your deployed frontend URL.
+> The backend also supports Railway's injected `PORT` automatically, and you can still set `API_PORT` explicitly for local or other environments.
 
 ---
 
